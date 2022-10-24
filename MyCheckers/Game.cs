@@ -188,15 +188,17 @@ namespace MyCheckers
                 PrintMoves(pressedButton, canEat);
                 pressedButton.BackColor = Color.LightGreen;
             }
+
             else
             {
                 if (isMoving)
-                    Move(prevButton, pressedButton, e);
+                {
+                    Move(pressedButton, e);
+                }
             }
         }
 
-        // Сделать ход
-        public void Move(Button prevButton, Button pressedButton, EventArgs e)
+        public void Move(Button pressedButton, EventArgs e)
         {
             if (CheckMove(prevButton, pressedButton) && !canEat)
                 Go(prevButton, pressedButton);
