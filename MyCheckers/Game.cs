@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
 
 namespace MyCheckers
@@ -29,6 +30,8 @@ namespace MyCheckers
         Button prevButton;
         bool isMoving;
         bool canEat;
+
+        Help help = null;
 
         // Начало игры
         public Game()
@@ -68,11 +71,10 @@ namespace MyCheckers
                 for (var j = 0; j < board.Size; j++)
                     CreateChecker(i, j);
             }
-            
-            CreateLabel("Игрок 2", 80 + cellSize * board.Size, 20);
-            CreateLabel("Игрок 1", 80 + cellSize * board.Size, this.Height - 100);
+
             CreateTrackBar();
             CreateRestartButton();
+            CreateHelpButton();
         }
 
         // Создание шашки
@@ -97,20 +99,6 @@ namespace MyCheckers
             this.Controls.Add(button);
         }
 
-        // Создание подписей
-        public void CreateLabel(string text, int x, int y)
-        {
-            var label = new System.Windows.Forms.Label();
-
-            label.Location = new Point(x, y);
-            label.Size = new Size(200, 100);
-            label.Text = text;
-            label.Font = new Font(FontFamily.GenericSansSerif, 25);
-            label.ForeColor = ColorDark;
-
-            this.Controls.Add(label);
-        }
-
         // Создание ползунка
         public void CreateTrackBar()
         {
@@ -118,7 +106,7 @@ namespace MyCheckers
 
             trackBar.TickStyle = TickStyle.Both;
             trackBar.SetRange(4, 5);
-            trackBar.Location = new Point(cellSize * board.Size + 50, this.Height / 2 - 100);
+            trackBar.Location = new Point(cellSize * board.Size + 50, this.Height / 2 - 46);
             trackBar.Size = new Size(200, 50);
             trackBar.Value = board.Size / 2;
             trackBar.BackColor = ColorDark;
@@ -142,7 +130,7 @@ namespace MyCheckers
         {
             var button = new Button();
 
-            button.Location = new Point(cellSize * board.Size + 47, this.Height / 2);
+            button.Location = new Point(cellSize * board.Size + 47, this.Height / 2 - 100);
             button.Size = new Size(206, 50);
             button.Text = "Новая игра";
             button.ForeColor = ColorLight;
@@ -155,6 +143,32 @@ namespace MyCheckers
 
         // Нажатие на кнопку рестарта 
         public void Restart(object sender, EventArgs e) => Init();
+
+        // Создание кнопки открытие правил
+        public void CreateHelpButton()
+        {
+            var button = new Button();
+
+            button.Location = new Point(cellSize * board.Size + 47, this.Height / 2 + 4);
+            button.Size = new Size(206, 50);
+            button.Text = "Правила";
+            button.ForeColor = ColorLight;
+            button.Font = new Font(FontFamily.GenericSansSerif, 25);
+            button.Click += new EventHandler(ShowHelp);
+            button.BackColor = ColorDark;
+
+            this.Controls.Add(button);
+        }
+
+        // Нажатие на кнопку открытия правил
+        public void ShowHelp(object sender, EventArgs e)
+        {
+            if (help != null)
+                help.Hide();
+
+            help = new Help();
+            help.Show();
+        }
 
         // Нажатие на фигуру
         public void PressFigure(object sender, EventArgs e)
