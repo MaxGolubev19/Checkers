@@ -7,11 +7,11 @@ using System.Windows.Forms;
 
 namespace MyCheckers
 {
-    class Board
+    public class Board
     {
-        public int Size;
         public int CountWhite;
         public int CountBlack;
+        public int Size;
         public List<List<Checker>> Matrix = new List<List<Checker>>();
 
         public Dictionary<Checker.Colors, int> Counts = new Dictionary<Checker.Colors, int>()
@@ -21,9 +21,9 @@ namespace MyCheckers
         };
 
         // Создание доски
-        public Board(int size = 8, int countWhite = 0, int countBlack = 0)
+        public Board(int size, int countWhite = 0, int countBlack = 0)
         {
-            Size = Math.Max(6, Math.Min(size, 10));
+            Size = size;
             CountWhite = countWhite == 0 ? Size / 2 - 1 : Math.Max(1, Math.Min(countWhite, Size / 2 - 1));
             CountBlack = countBlack == 0 ? Size / 2 - 1 : Math.Max(1, Math.Min(countBlack, Size / 2 - 1));
 
@@ -48,7 +48,6 @@ namespace MyCheckers
         // Расстановка шашек
         private void ArrangeCheckers()
         {
-            
             for (var i = 1; i <= CountWhite; i++)
                 for (var j = (i + 1) % 2; j < Size; j += 2)
                     Matrix[Size - i][j] = new Checker(Checker.Colors.White, i, j);
@@ -71,7 +70,7 @@ namespace MyCheckers
         }
     }
 
-    class Checker
+    public class Checker
     {
         public enum Colors
         {
@@ -120,6 +119,5 @@ namespace MyCheckers
         {
             return Images[(Color, Queen)];
         }
-
     }
 }

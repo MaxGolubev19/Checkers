@@ -4,8 +4,11 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
@@ -14,20 +17,26 @@ namespace MyCheckers
 {
     public partial class Game : Form
     {
+        Color ColorDark = Color.Brown;
+        Color ColorLight = Color.PapayaWhip;
+
         const int cellSize = 80;
+        int size = 8;
         Board board;
-        List<List<Button>> buttons = new List<List<Button>>();
+        List<List<Button>> buttons;
 
         Checker.Colors currentPlayer;
         Button prevButton;
         bool isMoving;
         bool canEat;
 
+        // Начало игры
         public Game()
         {
             InitializeComponent();
             this.Text = "Checkers";
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.BackColor = ColorLight;
 
             Init();
         }
@@ -35,6 +44,7 @@ namespace MyCheckers
         // Начало игры
         public void Init()
         {
+            this.Controls.Clear();
             CreateBoard();
 
             currentPlayer = (Checker.Colors)0;
@@ -46,21 +56,27 @@ namespace MyCheckers
         // Создание доски
         public void CreateBoard()
         {
-            board = new Board();
+            board = new Board(size);
+            buttons = new List<List<Button>>();
 
-            this.Width = cellSize * board.Size + cellSize / 5;
+            this.Width = cellSize * board.Size + cellSize / 5 + 300;
             this.Height = cellSize * board.Size + cellSize / 2;
 
             for (var i = 0; i < board.Size; i++)
             {
                 buttons.Add(new List<Button>());
                 for (var j = 0; j < board.Size; j++)
-                    CreateButton(i, j);
+                    CreateChecker(i, j);
             }
+            
+            CreateLabel("Игрок 2", 80 + cellSize * board.Size, 20);
+            CreateLabel("Игрок 1", 80 + cellSize * board.Size, this.Height - 100);
+            CreateTrackBar();
+            CreateRestartButton();
         }
 
         // Создание шашки
-        public void CreateButton(int i, int j)
+        public void CreateChecker(int i, int j)
         {
             var checker = board.GetChecker(i, j);
 
@@ -81,7 +97,66 @@ namespace MyCheckers
             this.Controls.Add(button);
         }
 
-        // Нажать на фигуру
+        // Создание подписей
+        public void CreateLabel(string text, int x, int y)
+        {
+            var label = new System.Windows.Forms.Label();
+
+            label.Location = new Point(x, y);
+            label.Size = new Size(200, 100);
+            label.Text = text;
+            label.Font = new Font(FontFamily.GenericSansSerif, 25);
+            label.ForeColor = ColorDark;
+
+            this.Controls.Add(label);
+        }
+
+        // Создание ползунка
+        public void CreateTrackBar()
+        {
+            var trackBar = new TrackBar();
+
+            trackBar.TickStyle = TickStyle.Both;
+            trackBar.SetRange(4, 5);
+            trackBar.Location = new Point(cellSize * board.Size + 50, this.Height / 2 - 100);
+            trackBar.Size = new Size(200, 50);
+            trackBar.Value = board.Size / 2;
+            trackBar.BackColor = ColorDark;
+            trackBar.ForeColor = ColorLight;
+            trackBar.Scroll += new EventHandler(ScrollTrackBar);
+
+            this.Controls.Add(trackBar);
+        }
+
+        // Изменение положения ползунка
+        public void ScrollTrackBar(object sender, EventArgs e)
+        {
+            Thread.Sleep(500);
+            var trackBar = sender as TrackBar;
+            size = trackBar.Value * 2;
+            Init();
+        }
+
+        // Создание кнопки рестарта
+        public void CreateRestartButton()
+        {
+            var button = new Button();
+
+            button.Location = new Point(cellSize * board.Size + 47, this.Height / 2);
+            button.Size = new Size(206, 50);
+            button.Text = "Новая игра";
+            button.ForeColor = ColorLight;
+            button.Font = new Font(FontFamily.GenericSansSerif, 25);
+            button.Click += new EventHandler(Restart);
+            button.BackColor = ColorDark;
+
+            this.Controls.Add(button);
+        }
+
+        // Нажатие на кнопку рестарта 
+        public void Restart(object sender, EventArgs e) => Init();
+
+        // Нажатие на фигуру
         public void PressFigure(object sender, EventArgs e)
         {
             if (prevButton != null)
@@ -94,45 +169,50 @@ namespace MyCheckers
 
             if (CheckFigure(pressedButton))
             {
-                pressedButton.BackColor = Color.Red;
                 isMoving = true;
                 prevButton = pressedButton;
                 PrintMoves(pressedButton, canEat);
+                pressedButton.BackColor = Color.LightGreen;
             }
             else
             {
                 if (isMoving)
-                {
-                    if (CheckMove(prevButton, pressedButton) && !canEat)
-                        Move(prevButton, pressedButton);
-
-                    else if (CheckEat(prevButton, pressedButton))
-                        {
-                            Eat(prevButton, pressedButton);
-                            canEat = FindFood(prevButton);
-                        }
-
-                    if (canEat)
-                    {
-                        PrintMoves(prevButton, canEat);
-                        PressFigure((object)prevButton, e);
-                    }
-
-                    if (isMoving == false && !canEat)
-                    {
-                        ChangePlayer();
-                        canEat = FindFood();
-                        prevButton = null;
-                    }
-
-                    CheckQueen(pressedButton);
-                    CheckEnd();
-                }
+                    Move(prevButton, pressedButton, e);
             }
         }
 
         // Сделать ход
-        public void Move(Button fromButton, Button toButton)
+        public void Move(Button prevButton, Button pressedButton, EventArgs e)
+        {
+            if (CheckMove(prevButton, pressedButton) && !canEat)
+                Go(prevButton, pressedButton);
+
+            else if (CheckEat(prevButton, pressedButton))
+            {
+                Eat(prevButton, pressedButton);
+                canEat = FindFood(prevButton);
+            }
+
+            if (canEat)
+            {
+                PrintMoves(prevButton, canEat);
+                PressFigure((object)prevButton, e);
+            }
+
+            if (isMoving == false && !canEat)
+            {
+                ChangePlayer();
+                canEat = FindFood();
+                prevButton = null;
+            }
+
+            CheckQueen(pressedButton);
+            CheckEnd();
+        }
+
+
+        // Переместить шашку
+        public void Go(Button fromButton, Button toButton)
         {
             ClearBoard();
 
@@ -149,12 +229,11 @@ namespace MyCheckers
         // Съесть шашку
         public void Eat(Button fromButton, Button toButton)
         {
-            Move(fromButton, toButton);
+            Go(fromButton, toButton);
 
             var (x1, y1) = FindXY(fromButton);
             var (x2, y2) = FindXY(toButton);
 
-            Checker dieChecker = null;
             int y = y1, x = x1;
 
             var vectorX = (x2 - x1) / Math.Abs(x2 - x1);
@@ -210,6 +289,18 @@ namespace MyCheckers
             if (Math.Abs(x2 - x1) != Math.Abs(y2 - y1) || x1 == x2)
                 return false;
 
+            var (myCheckerCount, otherCheckerCount) = CountCheckers(checker, x1, y1, x2, y2);
+
+            return cell.Color == Checker.Colors.Empty && 
+                myCheckerCount == 0 && otherCheckerCount == 1 &&
+                (checker.Color == Checker.Colors.White && Math.Abs(y2 - y1) == 2 ||
+                checker.Color == Checker.Colors.Black && Math.Abs(y2 - y1) == 2 ||
+                checker.Queen);
+        }
+
+        // Подсчёт попутных шашек
+        public (int, int) CountCheckers(Checker checker, int x1, int y1, int x2, int y2)
+        {
             var myCheckerCount = 0;
             var otherCheckerCount = 0;
 
@@ -227,13 +318,10 @@ namespace MyCheckers
                     otherCheckerCount++;
             }
 
-            return cell.Color == Checker.Colors.Empty && 
-                myCheckerCount == 0 && otherCheckerCount == 1 &&
-                (checker.Color == Checker.Colors.White && Math.Abs(y2 - y1) == 2 ||
-                checker.Color == Checker.Colors.Black && Math.Abs(y2 - y1) == 2 ||
-                checker.Queen);
+            return (myCheckerCount, otherCheckerCount);
         }
 
+        // Проверка на дамку 
         public void CheckQueen(Button button)
         {
             var (x, y) = FindXY(button);
@@ -247,13 +335,15 @@ namespace MyCheckers
             }
         }
 
+        // Проверка на окончание игры
         public void CheckEnd()
         {
-            if( board.Counts[Checker.Colors.White] == 0 ||
+            if (board.Counts[Checker.Colors.White] == 0 ||
                 board.Counts[Checker.Colors.Black] == 0)
-                this.Close();
+                Init();
         }
 
+        // Проверка на возможность съесть шашку противника игроком
         public bool FindFood()
         {
             bool res = false;
@@ -273,6 +363,7 @@ namespace MyCheckers
             return res;
         }
 
+        // Проверка на возможность съесть шашку противника шашкой
         public bool FindFood(Button fromButton)
         {
             bool res = false;
@@ -284,6 +375,7 @@ namespace MyCheckers
             return res;
         }
 
+        // Раскраска возможных ходов
         public void PrintMoves(Button fromButton, bool canEat)
         {
             ClearBoard();
@@ -293,10 +385,11 @@ namespace MyCheckers
                 {
                     var toButton = buttons[i][j];
                     if (!canEat && CheckMove(fromButton, toButton) || canEat && CheckEat(fromButton, toButton))
-                        toButton.BackColor = Color.Yellow;
+                        toButton.BackColor = Color.Coral;
                 }
         }
 
+        // Очистка доски от предыдущих раскрасок
         public void ClearBoard()
         {
             for (var i = 0; i < board.Size; i++)
@@ -320,9 +413,9 @@ namespace MyCheckers
         public void PaintDefaultColor(Button button, int i, int j)
         {
             if (i % 2 == j % 2)
-                button.BackColor = Color.White;
+                button.BackColor = Color.BurlyWood;
             else
-                button.BackColor = Color.Gray;
+                button.BackColor = Color.DarkRed;
         }
 
         // Передать ход другому игроку
